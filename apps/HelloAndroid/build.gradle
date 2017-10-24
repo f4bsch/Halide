@@ -12,7 +12,7 @@ buildscript {
         jcenter()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:1.2.2'
+        classpath 'com.android.tools.build:gradle:2.3.3'
     }
 
 }
@@ -36,72 +36,75 @@ buildscript {
 //         make the later ndkBuild task depend on this task.
 
 apply plugin: "cpp"
-
-sources {
-    hello_generator {
-        cpp(CppSourceSet) {
-            source {
-                srcDirs "jni/", "${projectDir}/../../tools/"
-                include "hello_generator.cpp", "GenGen.cpp"
+model {
+    components {
+        hello_generator(NativeExecutableSpec) {
+            sources {
+               // hello_generator {
+                    cpp { //(CppSourceSet)
+                        source {
+                            srcDirs "jni/", "${projectDir}/../../tools/"
+                            include "hello_generator.cpp", "GenGen.cpp"
+                        }
+                    }
+               // }
             }
-        }
-    }
-}
 
-executables {
-    hello_generator {
-        binaries.all {
-            cppCompiler.args "-std=c++11", "-g", "-Wall", "-fno-rtti", "-I", "${projectDir}/../../include", "-I", "${projectDir}/../../build/include"
-            // "/bin" assumes Makefile build for Halide; "/build/lib" assumes CMake build
-            linker.args "-lHalide", "-ldl", "-lpthread", "-lz", "-L", "${projectDir}/../../bin", "-L", "${projectDir}/../../build/lib"
-        }
-    }
-}
+            binaries.all {
+                cppCompiler.args "-std=c++11", "-g", "-Wall", "-fno-rtti", "-I", "${projectDir}/../../include", "-I", "${projectDir}/../../build/include"
+                // "/bin" assumes Makefile build for Halide; "/build/lib" assumes CMake build
+                linker.args "-lHalide", "-ldl", "-lpthread", "-lz", "-L", "${projectDir}/../../bin", "-L", "${projectDir}/../../build/lib"
+            }
 
-binaries.withType(NativeExecutableBinary) { binary ->
-    def bin = "${projectDir}/bin"
-    def linkTask = binary.tasks.link
-    println "linktask output file is " + linkTask.outputFile
-    Map<String, String> archs = [
-        // armeabi and armeabi-v7a are the same as far as Halide is concerned
-        "armeabi":      "arm-32-android",
-        "armeabi-v7a":  "arm-32-android",
-        "arm64-v8a":    "arm-64-android",
-        "mips":         "mips-32-android",
-        "x86_64":       "x86-64-android-sse41",
-        "x86":          "x86-32-android"
-    ]
-    archs.each {
-        arch -> println "creating task for: " + arch.key + " -> " + arch.value
-        def android_abi = arch.key
-        def hl_target = arch.value
-        def task_name = "generate_halide_binary_${binary.name.capitalize()}_${android_abi}"
-        def destDir = new File(bin, "${android_abi}")
-        def generateHalideTask = task(task_name) {
-            dependsOn linkTask
-            doFirst {
-                println "Executing: " + linkTask.outputFile + " ..."
-                destDir.mkdirs()
-                def envVars = [ "DYLD_LIBRARY_PATH=${projectDir}/../../bin", "LD_LIBRARY_PATH=${projectDir}/../../bin" ]
-                def proc = [linkTask.outputFile, "-g", "hello", "-o", "${destDir}", "target=${hl_target}"].execute(envVars, destDir)
-                proc.waitFor()
-                if (proc.exitValue() != 0) {
-                    println "return code: ${proc.exitValue()}"
-                    println "stderr: ${proc.err.text}"
-                    println "stdout: ${proc.in.text}"
+
+            binaries.withType(NativeExecutableBinary) { binary ->
+                def bin = "${projectDir}/bin"
+                def linkTask = binary.tasks.link
+                println "linktask output file is " + linkTask.outputFile
+                Map<String, String> archs = [
+                        // armeabi and armeabi-v7a are the same as far as Halide is concerned
+                        "armeabi":      "arm-32-android",
+                        "armeabi-v7a":  "arm-32-android",
+                        "arm64-v8a":    "arm-64-android",
+                        "mips":         "mips-32-android",
+                        "x86_64":       "x86-64-android-sse41",
+                        "x86":          "x86-32-android"
+                ]
+                archs.each {
+                    arch -> println "creating task for: " + arch.key + " -> " + arch.value
+                        def android_abi = arch.key
+                        def hl_target = arch.value
+                        def task_name = "generate_halide_binary_${binary.name.capitalize()}_${android_abi}"
+                        def destDir = new File(bin, "${android_abi}")
+                        def generateHalideTask = task(task_name) {
+                            dependsOn linkTask
+                            doFirst {
+                                println "Executing: " + linkTask.outputFile + " ..."
+                                destDir.mkdirs()
+                                def envVars = [ "DYLD_LIBRARY_PATH=${projectDir}/../../bin", "LD_LIBRARY_PATH=${projectDir}/../../bin" ]
+                                def proc = [linkTask.outputFile, "-g", "hello", "-o", "${destDir}", "target=${hl_target}"].execute(envVars, destDir)
+                                proc.waitFor()
+                                if (proc.exitValue() != 0) {
+                                    println "return code: ${proc.exitValue()}"
+                                    println "stderr: ${proc.err.text}"
+                                    println "stdout: ${proc.in.text}"
+                                }
+                            }
+                        }
+
+                        // Call this task generateHalideTask.
+                        binary.builtBy generateHalideTask
+
+                        // Tell gradle that the task called "ndkBuild" below depends
+                        // on generateHalideTask.
+                        ndkBuild.dependsOn generateHalideTask
                 }
+                println "done with archs"
             }
         }
-
-        // Call this task generateHalideTask.
-        binary.builtBy generateHalideTask
-
-        // Tell gradle that the task called "ndkBuild" below depends
-        // on generateHalideTask.
-        ndkBuild.dependsOn generateHalideTask
     }
-    println "done with archs"
 }
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -110,7 +113,7 @@ apply plugin: 'com.android.application'
 
 android {
     compileSdkVersion 21
-    buildToolsVersion "21.1.2"
+    buildToolsVersion '25.0.0'
 
     defaultConfig {
         applicationId "com.example.hellohalide"

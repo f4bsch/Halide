@@ -74,9 +74,8 @@ private:
         if (op->name == var) {
             result = in;
         } else {
-            scope.push(op->name, in);
+            ScopedBinding<Interval> p(scope, op->name, in);
             op->body.accept(this);
-            scope.pop(op->name);
         }
     }
 
@@ -89,9 +88,8 @@ private:
         if (op->name == var) {
             result = in;
         } else {
-            scope.push(op->name, in);
+            ScopedBinding<Interval> p(scope, op->name, in);
             op->body.accept(this);
-            scope.pop(op->name);
         }
     }
 };
@@ -104,7 +102,7 @@ Interval bounds_of_inner_var(string var, Stmt s) {
 
 }
 
-class BoundsInference : public IRMutator {
+class BoundsInference : public IRMutator2 {
 public:
     const vector<Function> &funcs;
     const FuncValueBounds &func_bounds;
@@ -842,9 +840,9 @@ public:
         }
     }
 
-    using IRMutator::visit;
+    using IRMutator2::visit;
 
-    void visit(const For *op) {
+    Stmt visit(const For *op) override {
         set<string> old_inner_productions;
         inner_productions.swap(old_inner_productions);
 
@@ -980,14 +978,15 @@ public:
 
         in_stages.pop(stage_name);
 
-        stmt = For::make(op->name, op->min, op->extent, op->for_type, op->device_api, body);
+        return For::make(op->name, op->min, op->extent, op->for_type, op->device_api, body);
     }
 
-    void visit(const ProducerConsumer *p) {
+    Stmt visit(const ProducerConsumer *p) override {
         in_pipeline.insert(p->name);
-        IRMutator::visit(p);
+        Stmt stmt = IRMutator2::visit(p);
         in_pipeline.erase(p->name);
         inner_productions.insert(p->name);
+        return stmt;
     }
 
 };

@@ -144,7 +144,7 @@ static int debug_indent = 0;
 class Simplify : public IRMutator2 {
 public:
     Simplify(bool r, const Scope<Interval> *bi, const Scope<ModulusRemainder> *ai) :
-        simplify_lets(r), no_fp_simplify(false) {
+        simplify_lets(r), no_float_simplify(false) {
         alignment_info.set_containing_scope(ai);
 
         // Only respect the constant bounds from the containing scope.
@@ -194,7 +194,7 @@ public:
 
 private:
     bool simplify_lets;
-    bool no_fp_simplify;
+    bool no_float_simplify;
 
     struct VarInfo {
         Expr replacement;
@@ -435,7 +435,7 @@ private:
 
     Expr visit(const Cast *op) override {
         Expr value = mutate(op->value);
-        if (no_fp_simplify &&
+        if (no_float_simplify &&
             (op->type.is_float() || value.type().is_float())) {
             if (value.same_as(op->value)) {
                 return op;
@@ -567,7 +567,7 @@ private:
         Expr a = mutate(op->a);
         Expr b = mutate(op->b);
 
-        if (no_fp_simplify && op->type.is_float()) {
+        if (no_float_simplify && op->type.is_float()) {
             if (a.same_as(op->a) && b.same_as(op->b)) {
                 return op;
             } else {
@@ -1016,7 +1016,7 @@ private:
         Expr a = mutate(op->a);
         Expr b = mutate(op->b);
 
-        if (no_fp_simplify && op->type.is_float()) {
+        if (no_float_simplify && op->type.is_float()) {
             if (a.same_as(op->a) && b.same_as(op->b)) {
                 return op;
             } else {
@@ -1671,7 +1671,7 @@ private:
         Expr a = mutate(op->a);
         Expr b = mutate(op->b);
 
-        if (no_fp_simplify && op->type.is_float()) {
+        if (no_float_simplify && op->type.is_float()) {
             if (a.same_as(op->a) && b.same_as(op->b)) {
                 return op;
             } else {
@@ -1784,7 +1784,7 @@ private:
         Expr a = mutate(op->a);
         Expr b = mutate(op->b);
 
-        if (no_fp_simplify && op->type.is_float()) {
+        if (no_float_simplify && op->type.is_float()) {
             if (a.same_as(op->a) && b.same_as(op->b)) {
                 return op;
             } else {
@@ -2211,7 +2211,7 @@ private:
         Expr a = mutate(op->a);
         Expr b = mutate(op->b);
 
-        if (no_fp_simplify && op->type.is_float()) {
+        if (no_float_simplify && op->type.is_float()) {
             if (a.same_as(op->a) && b.same_as(op->b)) {
                 return op;
             } else {
@@ -2360,7 +2360,7 @@ private:
         Expr a = mutate(op->a);
         Expr b = mutate(op->b);
 
-        if (no_fp_simplify && op->type.is_float()) {
+        if (no_float_simplify && op->type.is_float()) {
             if (a.same_as(op->a) && b.same_as(op->b)) {
                 return op;
             } else {
@@ -2800,7 +2800,7 @@ private:
         Expr a = mutate(op->a);
         Expr b = mutate(op->b);
 
-        if (no_fp_simplify && op->type.is_float()) {
+        if (no_float_simplify && op->type.is_float()) {
             if (a.same_as(op->a) && b.same_as(op->b)) {
                 return op;
             } else {
@@ -3209,7 +3209,7 @@ private:
     }
 
     Expr visit(const EQ *op) override {
-        if (no_fp_simplify && op->type.is_float()) {
+        if (no_float_simplify && op->type.is_float()) {
             Expr a = mutate(op->a);
             Expr b = mutate(op->b);
             if (a.same_as(op->a) && b.same_as(op->b)) {
@@ -3309,7 +3309,7 @@ private:
     }
 
     Expr visit(const NE *op) override {
-        if (no_fp_simplify && op->type.is_float()) {
+        if (no_float_simplify && op->type.is_float()) {
             Expr a = mutate(op->a);
             Expr b = mutate(op->b);
             if (a.same_as(op->a) && b.same_as(op->b)) {
@@ -3326,7 +3326,7 @@ private:
         Expr a = mutate(op->a);
         Expr b = mutate(op->b);
 
-        if (no_fp_simplify && op->type.is_float()) {
+        if (no_float_simplify && op->type.is_float()) {
             if (a.same_as(op->a) && b.same_as(op->b)) {
                 return op;
             } else {
@@ -3657,7 +3657,7 @@ private:
     }
 
     Expr visit(const LE *op) override {
-        if (no_fp_simplify && op->type.is_float()) {
+        if (no_float_simplify && op->type.is_float()) {
             Expr a = mutate(op->a);
             Expr b = mutate(op->b);
 
@@ -3672,7 +3672,7 @@ private:
     }
 
     Expr visit(const GT *op) override {
-        if (no_fp_simplify && op->type.is_float()) {
+        if (no_float_simplify && op->type.is_float()) {
             Expr a = mutate(op->a);
             Expr b = mutate(op->b);
 
@@ -3687,7 +3687,7 @@ private:
     }
 
     Expr visit(const GE *op) override {
-        if (no_fp_simplify && op->type.is_float()) {
+        if (no_float_simplify && op->type.is_float()) {
             Expr a = mutate(op->a);
             Expr b = mutate(op->b);
 
@@ -4415,9 +4415,9 @@ private:
             found_buffer_reference(op->name, op->args.size());
         }
 
-        if (op->is_intrinsic(Call::no_fp_simplify) ||
-            op->is_intrinsic(Call::strict_fp)) {
-            ScopedValue<bool> save_no_fp_simplify(no_fp_simplify, true);
+        if (op->is_intrinsic(Call::no_float_simplify) ||
+            op->is_intrinsic(Call::strict_float)) {
+            ScopedValue<bool> save_no_float_simplify(no_float_simplify, true);
             return IRMutator2::visit(op);
         } else if (op->is_intrinsic(Call::shift_left) ||
             op->is_intrinsic(Call::shift_right)) {

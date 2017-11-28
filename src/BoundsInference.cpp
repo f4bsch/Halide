@@ -107,7 +107,7 @@ public:
     const vector<Function> &funcs;
     const FuncValueBounds &func_bounds;
     set<string> in_pipeline, inner_productions;
-    Scope<int> in_stages;
+    Scope<> in_stages;
     const Target target;
 
     struct CondValue {
@@ -135,6 +135,10 @@ public:
         // set for later use.
         vector<vector<CondValue>> compute_exprs_helper(const Definition& def, bool is_update) {
             vector<vector<CondValue>> result(2); // <args, values>
+
+            if (!def.defined()) {
+                return result;
+            }
 
             // Default case (no specialization)
             vector<Expr> predicates = def.split_predicate();
@@ -266,7 +270,7 @@ public:
         Stmt define_bounds(Stmt s,
                            string producing_stage,
                            string loop_level,
-                           const Scope<int> &in_stages,
+                           const Scope<> &in_stages,
                            const set<string> &in_pipeline,
                            const set<string> inner_productions,
                            const Target &target) {
@@ -649,7 +653,7 @@ public:
         vector<bool> inlined(f.size());
         for (size_t i = 0; i < inlined.size(); i++) {
             if (i < f.size() - 1 &&
-                f[i].schedule().compute_level().is_inline() &&
+                f[i].schedule().compute_level().is_inlined() &&
                 f[i].can_be_inlined()) {
                 inlined[i] = true;
             } else {
@@ -699,7 +703,7 @@ public:
         // Remove the inlined stages
         vector<Stage> new_stages;
         for (size_t i = 0; i < stages.size(); i++) {
-            if (!stages[i].func.schedule().compute_level().is_inline() ||
+            if (!stages[i].func.schedule().compute_level().is_inlined() ||
                 !stages[i].func.can_be_inlined()) {
                 new_stages.push_back(stages[i]);
             }
@@ -877,7 +881,7 @@ public:
             }
         }
 
-        in_stages.push(stage_name, 0);
+        in_stages.push(stage_name);
 
         // Figure out how much of it we're producing
         Box box;

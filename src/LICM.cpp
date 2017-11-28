@@ -69,6 +69,12 @@ class LiftLoopInvariants : public IRMutator2 {
         // (We just skip all vectors on the principle that we don't want them
         // on the stack anyway.)
         if (e.type().is_vector()) return false;
+        if (const Cast *cast = e.as<Cast>()) {
+            if (cast->type.bytes() > cast->value.type().bytes()) {
+                // Don't lift widening casts.
+                return false;
+            }
+        }
         return true;
     }
 
@@ -118,7 +124,7 @@ class LICM : public IRMutator2 {
 
     // Compute the cost of computing an expression inside the inner
     // loop, compared to just loading it as a parameter.
-    int cost(Expr e, const set<string> &vars) {
+    int cost(const Expr &e, const set<string> &vars) {
         if (is_const(e)) {
             return 0;
         } else if (const Variable *var = e.as<Variable>()) {
@@ -136,7 +142,7 @@ class LICM : public IRMutator2 {
         } else if (const Mul *mul = e.as<Mul>()) {
             return cost(mul->a, vars) + cost(mul->b, vars) + 1;
         } else {
-            return 0x7fffffff;
+            return 100;
         }
     }
 
@@ -279,7 +285,7 @@ class GroupLoopInvariants : public IRMutator2 {
         int depth;
     };
 
-    vector<Term> extract_summation(Expr e) {
+    vector<Term> extract_summation(const Expr &e) {
         vector<Term> pending, terms;
         pending.push_back({e, true, 0});
         while (!pending.empty()) {
@@ -315,7 +321,7 @@ class GroupLoopInvariants : public IRMutator2 {
         return terms;
     }
 
-    Expr reassociate_summation(Expr e) {
+    Expr reassociate_summation(const Expr &e) {
         vector<Term> terms = extract_summation(e);
 
         Expr result;
@@ -346,31 +352,47 @@ class GroupLoopInvariants : public IRMutator2 {
     }
 
     Expr visit(const Sub *op) override {
+        if (op->type.is_float()) {
+            // Don't reassociate float exprs.
+            // (If strict_float is off, we're allowed to reassociate,
+            // and we do reassociate elsewhere, but there's no benefit to it
+            // here and it's friendlier not to.)
+            return IRMutator2::visit(op);
+        }
+
         return reassociate_summation(op);
     }
 
     Expr visit(const Add *op) override {
+        if (op->type.is_float()) {
+            // Don't reassociate float exprs.
+            // (If strict_float is off, we're allowed to reassociate,
+            // and we do reassociate elsewhere, but there's no benefit to it
+            // here and it's friendlier not to.)
+            return IRMutator2::visit(op);
+        }
+
         return reassociate_summation(op);
     }
 
     int depth = 0;
-    
+
     Stmt visit(const For *op) override {
-        depth++;	
-	ScopedBinding<int> bind(var_depth, op->name, depth);
+        depth++;
+        ScopedBinding<int> bind(var_depth, op->name, depth);
         Stmt stmt = IRMutator2::visit(op);
         depth--;
-	return stmt;
+        return stmt;
     }
 
     Expr visit(const Let *op) override {
-	ScopedBinding<int> bind(var_depth, op->name, expr_depth(op->value));
-	return IRMutator2::visit(op);
+        ScopedBinding<int> bind(var_depth, op->name, expr_depth(op->value));
+        return IRMutator2::visit(op);
     }
 
     Stmt visit(const LetStmt *op) override {
-	ScopedBinding<int> bind(var_depth, op->name, expr_depth(op->value));
-	return IRMutator2::visit(op);
+        ScopedBinding<int> bind(var_depth, op->name, expr_depth(op->value));
+        return IRMutator2::visit(op);
     }
 
 };

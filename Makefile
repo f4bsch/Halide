@@ -41,7 +41,7 @@ CLANG ?= clang
 CLANG_VERSION = $(shell $(CLANG) --version)
 LLVM_BINDIR = $(shell $(LLVM_CONFIG) --bindir | sed -e 's/\\/\//g' -e 's/\([a-zA-Z]\):/\/\1/g')
 LLVM_LIBDIR = $(shell $(LLVM_CONFIG) --libdir | sed -e 's/\\/\//g' -e 's/\([a-zA-Z]\):/\/\1/g')
-LLVM_SYSTEM_LIBS=$(shell ${LLVM_CONFIG} --system-libs | sed -e 's/[\/&]/\\&/g')
+LLVM_SYSTEM_LIBS=$(shell ${LLVM_CONFIG} --system-libs --link-static | sed -e 's/[\/&]/\\&/g')
 LLVM_AS = $(LLVM_BINDIR)/llvm-as
 LLVM_NM = $(LLVM_BINDIR)/llvm-nm
 LLVM_CXX_FLAGS = -std=c++11  $(filter-out -O% -g -fomit-frame-pointer -pedantic -W% -W, $(shell $(LLVM_CONFIG) --cxxflags | sed -e 's/\\/\//g' -e 's/\([a-zA-Z]\):/\/\1/g;s/-D/ -D/g;s/-O/ -O/g'))
@@ -718,6 +718,8 @@ endif
 $(INCLUDE_DIR)/Halide.h: $(HEADERS) $(SRC_DIR)/HalideFooter.h $(BIN_DIR)/build_halide_h
 	@mkdir -p $(@D)
 	$(BIN_DIR)/build_halide_h $(HEADERS) $(SRC_DIR)/HalideFooter.h > $(INCLUDE_DIR)/Halide.h
+	# Also generate a precompiled version in the same folder so that anything compiled with a compatible set of flags can use it
+	$(CXX) -std=c++11 $(TEST_CXX_FLAGS) -I$(ROOT_DIR) $(OPTIMIZE) -x c++-header $(INCLUDE_DIR)/Halide.h -o $(INCLUDE_DIR)/Halide.h.gch
 
 $(INCLUDE_DIR)/HalideRuntime%: $(SRC_DIR)/runtime/HalideRuntime%
 	echo Copying $<
@@ -979,21 +981,10 @@ $(BIN_DIR)/correctness_%: $(ROOT_DIR)/test/correctness/%.cpp $(BIN_DIR)/libHalid
 $(BIN_DIR)/correctness_plain_c_includes: $(ROOT_DIR)/test/correctness/plain_c_includes.c $(RUNTIME_EXPORTED_INCLUDES)
 	$(CXX) -x c -Wall -Werror -I$(ROOT_DIR) $(OPTIMIZE) $< -I$(ROOT_DIR)/src/runtime -o $@
 
-ifeq ($(UNAME), Darwin)
-WEAK_BUFFER_LINKAGE_FLAGS=-Wl,-U,_halide_weak_device_free
-else
-ifneq (,$(findstring MINGW,$(UNAME)))
-WEAK_BUFFER_LINKAGE_FLAGS=-Wl,--defsym=_halide_weak_device_free=0,--defsym=halide_device_free=0
-else
-WEAK_BUFFER_LINKAGE_FLAGS=
-endif
-endif
-
 # Note that this test must *not* link in either libHalide, or a Halide runtime;
-# this test should be usable without either. (Note that this requires an extra
-# linker directive on Darwin to ensure halide_weak_device_free() is in fact weak.)
+# this test should be usable without either. 
 $(BIN_DIR)/correctness_halide_buffer: $(ROOT_DIR)/test/correctness/halide_buffer.cpp $(INCLUDE_DIR)/HalideBuffer.h $(RUNTIME_EXPORTED_INCLUDES)
-	$(CXX) $(TEST_CXX_FLAGS) $(OPTIMIZE) $< -I$(INCLUDE_DIR) $(WEAK_BUFFER_LINKAGE_FLAGS) -o $@
+	$(CXX) $(TEST_CXX_FLAGS) $(OPTIMIZE) $< -I$(INCLUDE_DIR) -o $@
 
 # The image_io test additionally needs to link to libpng and
 # libjpeg.
@@ -1561,10 +1552,6 @@ ifneq (,$(findstring clang version 3.8,$(CLANG_VERSION)))
 CLANG_OK=yes
 endif
 
-ifneq (,$(findstring clang version 3.9,$(CLANG_VERSION)))
-CLANG_OK=yes
-endif
-
 ifneq (,$(findstring clang version 4.0,$(CLANG_VERSION)))
 CLANG_OK=yes
 endif
@@ -1597,7 +1584,7 @@ $(BUILD_DIR)/clang_ok:
 	@exit 1
 endif
 
-ifneq (,$(findstring $(LLVM_VERSION_TIMES_10), 39 40 50 60))
+ifneq (,$(findstring $(LLVM_VERSION_TIMES_10), 40 50 60))
 LLVM_OK=yes
 endif
 

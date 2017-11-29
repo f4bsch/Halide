@@ -816,10 +816,30 @@ WEAK bool get_texture_format(void *user_context, halide_buffer_t *buf,
 
     switch (global_state.profile) {
     case OpenGLES:
+		static GLint
+		fmts_f32[] = { GL_R32F,  GL_RG32F,  GL_RGB32F,  GL_RGBA32F },
+		fmts_u16[] = { GL_R16UI, GL_RG16UI, GL_RGB16UI, GL_RGBA16UI }
+		fmts_u8[] = {  GL_R8UI,  GL_RG8UI,  GL_RGB8UI,  GL_RGBA8UI };
+		
+		int sizedIndex = std::max(0,channels - 1);
+		
+		 if (*type == GL_FLOAT) {			
+			*internal_format = fmts_f32[sizedIndex];
+		  } else if (*type == GL_UNSIGNED_SHORT) {			
+			*internal_format = fmts_u16[sizedIndex];
+		  } else {			  
+			*internal_format =  fmts_u8[sizedIndex];
+		  }
         // For OpenGL ES, the texture format has to match the pixel format
         // since there no conversion is performed during texture transfers.
-        // See OES_texture_float.
-        *internal_format = *format;
+				
+				/*
+		  if (*type == GL_FLOAT) {
+			// See OES_texture_float.
+			*internal_format = *format;
+		  } else {
+			  *internal_format = GL_RGBA16UI;
+		  } */
         break;
     case OpenGL:
         // For desktop OpenGL, the internal format specifiers include the

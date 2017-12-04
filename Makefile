@@ -18,7 +18,7 @@ ifeq ($(OS), Windows_NT)
     FPIC=
 else
     # let's assume "normal" UNIX such as linux
-    COMMON_LD_FLAGS=-ldl -lpthread -lz
+    COMMON_LD_FLAGS=-ldl -lpthread -lz -ltinfo
     FPIC=-fPIC
 ifeq ($(UNAME), Darwin)
     SHARED_EXT=dylib

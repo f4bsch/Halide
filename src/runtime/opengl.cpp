@@ -816,12 +816,24 @@ WEAK bool get_texture_format(void *user_context, halide_buffer_t *buf,
 
     switch (global_state.profile) {
     case OpenGLES:
+	{
+#define GL_R16UI                          0x8234
+#define GL_RG16UI                         0x823A
+#define GL_RGB16UI                        0x8D77
+
+#define GL_R8UI                           0x8232
+#define GL_RG8UI                          0x8238
+#define GL_RGB8UI                         0x8D7D
+
+#define GL_RGBA8UI                        0x8D7C
+#define GL_RGBA16UI                       0x8D76
+
 		static GLint
 		fmts_f32[] = { GL_R32F,  GL_RG32F,  GL_RGB32F,  GL_RGBA32F },
-		fmts_u16[] = { GL_R16UI, GL_RG16UI, GL_RGB16UI, GL_RGBA16UI }
-		fmts_u8[] = {  GL_R8UI,  GL_RG8UI,  GL_RGB8UI,  GL_RGBA8UI };
+		fmts_u16[] = { GL_R16UI, GL_RG16UI, GL_RGB16UI, GL_RGBA16UI },
+		fmts_u8[] =  {  GL_R8UI,  GL_RG8UI,  GL_RGB8UI,  GL_RGBA8UI };
 		
-		int sizedIndex = std::max(0,channels - 1);
+		int sizedIndex = (channels <= 1) ? 0 : (channels - 1);
 		
 		 if (*type == GL_FLOAT) {			
 			*internal_format = fmts_f32[sizedIndex];
@@ -840,6 +852,7 @@ WEAK bool get_texture_format(void *user_context, halide_buffer_t *buf,
 		  } else {
 			  *internal_format = GL_RGBA16UI;
 		  } */
+	}
         break;
     case OpenGL:
         // For desktop OpenGL, the internal format specifiers include the

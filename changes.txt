@@ -1,0 +1,10 @@
+Makefile:
+
+-ltinfo:
+fixed for 
+`bin/libHalide.so: undefined reference to `set_curterm'
+bin/libHalide.so: undefined reference to `del_curterm'
+bin/libHalide.so: undefined reference to `tigetnum'
+bin/libHalide.so: undefined reference to `setupterm'`
+
+

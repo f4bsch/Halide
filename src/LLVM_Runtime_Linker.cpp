@@ -757,7 +757,7 @@ std::unique_ptr<llvm::Module> get_initial_module_for_target(Target t, llvm::LLVM
             }
         }
 
-        if (module_type != ModuleJITShared) { //  && module_type != ModuleAOTNoRuntime
+        if (module_type != ModuleJITShared) {
             // These modules are optional
             if (t.arch == Target::X86) {
                 modules.push_back(get_initmod_x86_ll(c));
@@ -795,7 +795,7 @@ std::unique_ptr<llvm::Module> get_initial_module_for_target(Target t, llvm::LLVM
             if (t.has_feature(Target::AVX)) {
                 modules.push_back(get_initmod_x86_avx_ll(c));
             }
-            if (t.has_feature(Target::Profile)) {
+            if (t.has_feature(Target::Profile) && module_type != ModuleAOTNoRuntime) {
                 modules.push_back(get_initmod_profiler_inlined(c, bits_64, debug));
             }
         }

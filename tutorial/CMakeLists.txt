@@ -62,7 +62,7 @@ add_tutorial(lesson_13_tuples.cpp)
 add_tutorial(lesson_14_types.cpp)
 
 option(BUILD_AOT_TUTORIAL "Build the ahead-of-time compilation tutorial" ON)
-if (BUILD_AOT_TUTORIAL)
+if (BUILD_AOT_TUTORIAL_NOP)
   # Tutorial 10 requires that we build generation code, then run it,
   # so we can build the final executable.
   add_tutorial(lesson_10_aot_compilation_generate.cpp)
